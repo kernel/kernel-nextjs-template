@@ -18,7 +18,7 @@ This template shows how to:
 
 - **Framework**: Next.js 15 with App Router
 - **Styling**: Tailwind CSS v4
-- **UI Components**: shadcn/ui
+- **UI Components**: shadcn/ui + AI SDK Elements
 - **AI**: Vercel AI SDK with OpenAI GPT-5.1
 - **Browser Automation**: Kernel SDK + Kernel AI SDK (`@onkernel/ai-sdk`)
 - **Package Manager**: Bun
@@ -84,7 +84,7 @@ This template shows how to:
 1. **Create Browser**: Click "Create Browser" to provision a serverless Kernel browser with live view capabilities
 2. **Describe Your Task**: Enter what you want the browser to do in natural language (e.g., "Go to Hacker News and get the top article title")
 3. **Watch AI Execute**: The AI agent interprets your task and uses Kernel's AI SDK-compatible browser automation tool to execute it in real-time
-4. **View Results**: See the agent's response, step count, and click "View Steps" to inspect the generated code and execution details
+4. **View Steps in Sidebar**: See the generated Playwright code and execution details in the dedicated sidebar panel next to the browser view
 
 ## Code Structure
 
@@ -97,13 +97,17 @@ app/
 │   │   └── route.ts          # Creates a serverless Kernel browser
 │   └── delete-browser/
 │       └── route.ts          # Closes browser session
-├── page.tsx                  # Main UI with live view and controls
+├── page.tsx                  # Main UI with split-panel layout
 ├── layout.tsx                # Root layout
 └── globals.css               # Global styles
 
 components/
 ├── Header.tsx                # App header with branding
-├── StepsOverlay.tsx          # Modal showing agent execution steps
+├── AgentStepsSidebar.tsx     # Sidebar showing agent execution steps
+├── ai-elements/              # AI SDK Elements components
+│   ├── code-block.tsx        # Syntax-highlighted code display
+│   ├── stack-trace.tsx       # Error stack trace display
+│   └── tool.tsx              # Tool invocation display
 └── ui/                       # shadcn/ui components
     ├── button.tsx
     ├── card.tsx

@@ -4,12 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, XCircle, Clock, Monitor, Terminal, Zap, ListTree } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Monitor, Terminal, Zap } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { Header } from "@/components/Header";
-import { StepsOverlay } from "@/components/StepsOverlay";
+import { AgentStepsSidebar } from "@/components/AgentStepsSidebar";
 
 interface BrowserSession {
   sessionId: string;
@@ -32,6 +31,7 @@ interface StepContentItem {
   code?: string;
   result?: any;
   success?: boolean;
+  error?: string;
   text?: string;
 }
 
@@ -56,16 +56,14 @@ export default function HomePage() {
   const [creatingBrowser, setCreatingBrowser] = useState(false);
   const [runningAutomation, setRunningAutomation] = useState(false);
   const [closingBrowser, setClosingBrowser] = useState(false);
-  const [browserSession, setBrowserSession] = useState<BrowserSession | null>(
-    null
-  );
-  const [automationResults, setAutomationResults] = useState<
-    AutomationResult[]
-  >([]);
+  const [browserSession, setBrowserSession] = useState<BrowserSession | null>(null);
+  const [automationResults, setAutomationResults] = useState<AutomationResult[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [deployUrl, setDeployUrl] = useState<string | null>(null);
   const [task, setTask] = useState("Go to https://news.ycombinator.com/ and get the first article title");
-  const [stepsOverlayResult, setStepsOverlayResult] = useState<AutomationResult | null>(null);
+  const [currentTask, setCurrentTask] = useState<string>("");
+  const [currentSteps, setCurrentSteps] = useState<DetailedStep[]>([]);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const createBrowser = async () => {
     setCreatingBrowser(true);
@@ -105,6 +103,14 @@ export default function HomePage() {
     if (!browserSession || !task.trim()) return;
 
     setRunningAutomation(true);
+    setCurrentTask(task.trim());
+    setCurrentSteps([]);
+
+    const taskToRun = task.trim();
+    let finalResponse = "";
+    let finalStepCount = 0;
+    let success = true;
+    let errorMessage = "";
 
     try {
       const response = await fetch("/api/agent", {
@@ -114,34 +120,74 @@ export default function HomePage() {
         },
         body: JSON.stringify({
           sessionId: browserSession.sessionId,
-          task: task.trim(),
+          task: taskToRun,
         }),
       });
 
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error("Failed to connect to agent API");
+      }
 
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error("No response body");
+      }
+
+      // Read the SSE stream
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+
+              if (data.type === "step") {
+                // Add the new step to the current steps
+                setCurrentSteps((prev) => [...prev, data.step]);
+              } else if (data.type === "done") {
+                finalResponse = data.response || "";
+                finalStepCount = data.stepCount || 0;
+                success = data.success;
+              } else if (data.type === "error") {
+                success = false;
+                errorMessage = data.error || "Unknown error";
+              }
+            } catch (e) {
+              // Ignore parse errors for incomplete chunks
+            }
+          }
+        }
+      }
+
+      // Create the final result
       const result: AutomationResult = {
-        success: data.success,
-        response: data.response,
-        executedCodes: data.executedCodes,
-        detailedSteps: data.detailedSteps,
-        stepCount: data.stepCount,
-        error: data.error,
-        task: task.trim(),
+        success,
+        response: finalResponse,
+        detailedSteps: undefined, // Steps are already in currentSteps
+        stepCount: finalStepCount,
+        error: errorMessage || undefined,
+        task: taskToRun,
         timestamp: Date.now(),
       };
 
       setAutomationResults((prev) => [result, ...prev]);
 
       // Clear the task input after successful execution
-      if (data.success) {
+      if (success) {
         setTask("");
       }
     } catch (err) {
       const result: AutomationResult = {
         success: false,
-        error: "Failed to run AI agent",
-        task: task.trim(),
+        error: err instanceof Error ? err.message : "Failed to run AI agent",
+        task: taskToRun,
         timestamp: Date.now(),
       };
       setAutomationResults((prev) => [result, ...prev]);
@@ -172,6 +218,8 @@ export default function HomePage() {
         // Clear browser session and reset state
         setBrowserSession(null);
         setAutomationResults([]);
+        setCurrentSteps([]);
+        setCurrentTask("");
         setTask("Go to https://news.ycombinator.com/ and extract the first article title");
       } else {
         setError(data.error || "Failed to close browser");
@@ -185,6 +233,126 @@ export default function HomePage() {
     }
   };
 
+  // When browser session is active, show split-panel layout
+  if (browserSession) {
+    return (
+      <div className="h-screen flex flex-col bg-[#0A0A0A] overflow-hidden">
+        {/* Header */}
+        <div className="relative z-10 border-b border-white/10 flex-shrink-0">
+          <Header />
+        </div>
+
+        {/* Main Content - Split Panel */}
+        <div className="flex-1 flex overflow-hidden min-h-0">
+          {/* Left Panel - Browser View */}
+          <div className="flex-1 flex flex-col min-w-0 p-4 overflow-hidden">
+            {/* Browser Controls */}
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5 text-green-500" />
+                <span className="font-semibold text-white">Browser Live View</span>
+                <Badge variant="secondary" className="text-xs">
+                  {browserSession.spinUpTime}ms
+                </Badge>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={closeBrowser}
+                disabled={closingBrowser || runningAutomation}
+                className="border-white/10 hover:bg-white/5"
+              >
+                {closingBrowser ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Closing...
+                  </>
+                ) : (
+                  "Close Browser"
+                )}
+              </Button>
+            </div>
+
+            {/* Browser iframe */}
+            <div className="flex-1 rounded-lg overflow-hidden border border-white/10 bg-black min-h-0">
+              <iframe
+                src={browserSession.liveViewUrl}
+                className="w-full h-full"
+                allow="camera; microphone; display-capture"
+              />
+            </div>
+
+            {/* Task Input */}
+            <div className="mt-4 space-y-3 flex-shrink-0">
+              <div className="space-y-2">
+                <label htmlFor="task-input" className="text-sm font-medium text-gray-300">
+                  Describe what you want the browser to do
+                </label>
+                <Textarea
+                  id="task-input"
+                  value={task}
+                  onChange={(e) => setTask(e.target.value)}
+                  placeholder={automationResults.length > 0 ? "Enter next task for the browser agent" : "Go to https://news.ycombinator.com/ and extract the first article title"}
+                  disabled={runningAutomation}
+                  className="min-h-[80px] resize-none bg-white/5 border-white/10 placeholder:text-gray-600"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                      e.preventDefault();
+                      runAutomation();
+                    }
+                  }}
+                />
+                <p className="text-xs text-gray-500">
+                  Press Cmd/Ctrl + Enter to run
+                </p>
+              </div>
+              <Button
+                size="lg"
+                onClick={runAutomation}
+                disabled={runningAutomation || !task.trim()}
+                className="w-full"
+              >
+                {runningAutomation ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    AI Agent Running...
+                  </>
+                ) : (
+                  "Run AI Agent"
+                )}
+              </Button>
+            </div>
+
+            {/* Latest Result Summary (compact) */}
+            {automationResults.length > 0 && automationResults[0].response && (
+              <div className="mt-4 p-3 rounded-lg bg-white/5 border border-white/10">
+                <div className="flex items-center gap-2 mb-2">
+                  {automationResults[0].success ? (
+                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <XCircle className="w-4 h-4 text-red-500" />
+                  )}
+                  <span className="text-sm font-medium text-gray-300">Latest Result</span>
+                </div>
+                <p className="text-sm text-gray-400">{automationResults[0].response}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Right Panel - Agent Steps Sidebar */}
+          <AgentStepsSidebar
+            steps={currentSteps}
+            isRunning={runningAutomation}
+            isCollapsed={sidebarCollapsed}
+            onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+            task={currentTask || undefined}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Default view - no browser session
   return (
     <div className="min-h-screen relative flex flex-col">
       {/* Radial Glow Effect */}
@@ -218,34 +386,32 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* Step 1: Create Browser */}
-            {!browserSession && (
-              <div className="space-y-2">
-                <Button
-                  variant="vercel"
-                  size="lg"
-                  onClick={createBrowser}
-                  disabled={creatingBrowser}
-                  className="text-base px-8 py-6 h-auto font-semibold"
-                >
-                  {creatingBrowser ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Creating Browser...
-                    </>
-                  ) : (
-                    <>
-                      Create Browser
-                      <span className="ml-1">→</span>
-                    </>
-                  )}
-                </Button>
-                <p className="text-xs text-gray-600">Click to create serverless browser</p>
-              </div>
-            )}
+            {/* Create Browser Button */}
+            <div className="space-y-2">
+              <Button
+                variant="vercel"
+                size="lg"
+                onClick={createBrowser}
+                disabled={creatingBrowser}
+                className="text-base px-8 py-6 h-auto font-semibold"
+              >
+                {creatingBrowser ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Creating Browser...
+                  </>
+                ) : (
+                  <>
+                    Create Browser
+                    <span className="ml-1">→</span>
+                  </>
+                )}
+              </Button>
+              <p className="text-xs text-gray-600">Click to create serverless browser</p>
+            </div>
 
             {/* Error Display */}
-            {error && !browserSession && (
+            {error && (
               <Card className="text-left">
                 <CardContent>
                   <div className="space-y-4">
@@ -275,207 +441,6 @@ export default function HomePage() {
                   </div>
                 </CardContent>
               </Card>
-            )}
-
-            {/* Live View and Automation Controls */}
-            {browserSession && (
-              <div className="space-y-6">
-                {/* Live View */}
-                <Card>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="w-5 h-5 text-green-600" />
-                          <span className="font-semibold">Browser Live View</span>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={closeBrowser}
-                          disabled={closingBrowser || runningAutomation}
-                        >
-                          {closingBrowser ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Closing...
-                            </>
-                          ) : (
-                            "Close Browser"
-                          )}
-                        </Button>
-                      </div>
-                      <div className="rounded-lg overflow-hidden border bg-black h-[500px]">
-                        <iframe
-                          src={browserSession.liveViewUrl}
-                          className="w-full h-full"
-                          allow="camera; microphone; display-capture"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4 text-left text-sm">
-                        <div>
-                          <p className="text-muted-foreground">
-                            Browser Spin-Up Time
-                          </p>
-                          <p className="font-mono font-semibold">
-                            {browserSession.spinUpTime}ms
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Session ID</p>
-                          <p className="font-mono font-semibold break-all">
-                            {browserSession.sessionId}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Step 2: Run AI Agent */}
-                <Card>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="space-y-2 text-left">
-                        <label
-                          htmlFor="task-input"
-                          className="text-sm font-medium"
-                        >
-                          Describe what you want the browser to do
-                        </label>
-                        <Textarea
-                          id="task-input"
-                          value={task}
-                          onChange={(e) => setTask(e.target.value)}
-                          placeholder={automationResults.length > 0 ? "Enter next task for the browser agent" : "Go to https://news.ycombinator.com/ and extract the first article title"}
-                          disabled={runningAutomation}
-                          className="min-h-[100px] resize-none placeholder:text-gray-600"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                              e.preventDefault();
-                              runAutomation();
-                            }
-                          }}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Press Cmd/Ctrl + Enter to run
-                        </p>
-                      </div>
-                      <Button
-                        size="lg"
-                        onClick={runAutomation}
-                        disabled={runningAutomation || !task.trim()}
-                        className="w-full text-lg py-6"
-                      >
-                        {runningAutomation ? (
-                          <>
-                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                            AI Agent Running...
-                          </>
-                        ) : (
-                          "Run AI Agent"
-                        )}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Automation Results */}
-                {automationResults.length > 0 && (
-                  <div className="space-y-4">
-                    <h3 className="text-xl font-semibold text-left">
-                      Agent Results
-                    </h3>
-                    {automationResults.map((result, index) => (
-                      <Card key={result.timestamp} className="text-left">
-                        <CardContent>
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                {result.success ? (
-                                  <>
-                                    <CheckCircle2 className="w-5 h-5 text-green-600" />
-                                    <span className="font-semibold">
-                                      Run #{automationResults.length - index}
-                                    </span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <XCircle className="w-5 h-5 text-red-600" />
-                                    <span className="font-semibold">
-                                      Run #{automationResults.length - index}{" "}
-                                      Failed
-                                    </span>
-                                  </>
-                                )}
-                              </div>
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(result.timestamp).toLocaleTimeString()}
-                              </span>
-                            </div>
-
-                            {/* Task Description */}
-                            {result.task && (
-                              <div className="p-3 bg-muted rounded-md">
-                                <p className="text-sm text-muted-foreground mb-1">
-                                  Task:
-                                </p>
-                                <p className="text-sm">{result.task}</p>
-                              </div>
-                            )}
-
-                            {result.success ? (
-                              <div className="space-y-3">
-                                {/* Agent Response */}
-                                {result.response && (
-                                  <div>
-                                    <p className="text-sm text-muted-foreground mb-1">
-                                      Response:
-                                    </p>
-                                    <p className="text-sm">{result.response}</p>
-                                  </div>
-                                )}
-
-                                {/* Step Count and View Steps Button */}
-                                {result.stepCount !== undefined && (
-                                  <div className="flex items-center gap-2">
-                                    <Badge variant="secondary">
-                                      {result.stepCount} steps
-                                    </Badge>
-                                    {result.detailedSteps && result.detailedSteps.length > 0 && (
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setStepsOverlayResult(result)}
-                                        className="ml-2"
-                                      >
-                                        <ListTree className="w-4 h-4 mr-1" />
-                                        View Steps
-                                      </Button>
-                                    )}
-                                  </div>
-                                )}
-
-                              </div>
-                            ) : (
-                              <div className="space-y-2">
-                                <div>
-                                  <span className="text-sm text-muted-foreground">
-                                    Error:
-                                  </span>
-                                  <p className="font-mono text-sm text-red-600">
-                                    {result.error}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </div>
             )}
 
             {/* Info Cards - Bento Grid */}
@@ -572,16 +537,6 @@ export default function HomePage() {
           </p>
         </div>
       </footer>
-
-      {/* Steps Overlay */}
-      {stepsOverlayResult && (
-        <StepsOverlay
-          open={!!stepsOverlayResult}
-          onOpenChange={(open) => !open && setStepsOverlayResult(null)}
-          steps={stepsOverlayResult.detailedSteps || []}
-          task={stepsOverlayResult.task || ""}
-        />
-      )}
     </div>
   );
 }

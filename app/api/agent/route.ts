@@ -1,8 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import { playwrightExecuteTool } from "@onkernel/ai-sdk";
 import { Kernel } from "@onkernel/sdk";
-import { Experimental_Agent as Agent, stepCountIs, tool } from "ai";
-import { z } from "zod";
+import { Experimental_Agent as Agent, stepCountIs } from "ai";
 
 export const maxDuration = 300; // 5 minutes timeout for long-running agent operations
 
@@ -63,78 +62,100 @@ Important: Write concise code that solves one atomic step at a time. Break compl
 Execute tasks autonomously without asking clarifying questions. Make reasonable assumptions and proceed.`,
     });
 
-    // Execute the agent with the user's task
-    const { text, steps, usage } = await agent.generate({
-      prompt: task,
-    });
+    // Create a readable stream for SSE
+    const encoder = new TextEncoder();
+    let stepCount = 0;
 
-    // Extract detailed step information from step.content[] array
-    const detailedSteps = steps.map((step, index) => {
-      const stepData = step as any;
-      const content = stepData.content || [];
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          // Execute the agent with step callbacks
+          const { text, steps, usage } = await agent.generate({
+            prompt: task,
+            onStepFinish: ({ stepType, text: stepText, toolCalls, toolResults, finishReason, usage: stepUsage }) => {
+              stepCount++;
+              
+              // Process the step content
+              const content: any[] = [];
+              
+              // Add tool calls
+              if (toolCalls && toolCalls.length > 0) {
+                for (const tc of toolCalls) {
+                  content.push({
+                    type: "tool-call",
+                    toolCallId: tc.toolCallId,
+                    toolName: tc.toolName,
+                    code: tc.args?.code || null,
+                  });
+                }
+              }
+              
+              // Add tool results
+              if (toolResults && toolResults.length > 0) {
+                for (const tr of toolResults) {
+                  content.push({
+                    type: "tool-result",
+                    toolCallId: tr.toolCallId,
+                    toolName: tr.toolName,
+                    result: tr.result?.result,
+                    success: tr.result?.success ?? true,
+                    error: tr.result?.error,
+                  });
+                }
+              }
+              
+              // Add text if present
+              if (stepText) {
+                content.push({
+                  type: "text",
+                  text: stepText,
+                });
+              }
+              
+              const stepData = {
+                type: "step",
+                step: {
+                  stepNumber: stepCount,
+                  finishReason: finishReason || null,
+                  content,
+                },
+              };
+              
+              // Send the step as SSE
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(stepData)}\n\n`));
+            },
+          });
 
-      console.log(content);
-
-      // Process each content item based on its type
-      const processedContent = content.map((item: any) => {
-        if (item.type === "tool-call") {
-          return {
-            type: "tool-call" as const,
-            toolCallId: item.toolCallId,
-            toolName: item.toolName,
-            code: item.input?.code || null,
+          // Send the final result
+          const finalData = {
+            type: "done",
+            success: true,
+            response: text,
+            stepCount: steps.length,
+            usage,
           };
-        } else if (item.type === "tool-result") {
-          return {
-            type: "tool-result" as const,
-            toolCallId: item.toolCallId,
-            toolName: item.toolName,
-            result: item.result?.result,
-            success: item.result?.success ?? true,
-            error: item.result?.error,
+          
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(finalData)}\n\n`));
+          controller.close();
+        } catch (error: any) {
+          console.error("Agent execution error:", error);
+          const errorData = {
+            type: "error",
+            success: false,
+            error: error.message || "Failed to execute agent",
           };
-        } else if (item.type === "text") {
-          return {
-            type: "text" as const,
-            text: item.text,
-          };
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorData)}\n\n`));
+          controller.close();
         }
-        return item;
-      });
-
-      return {
-        stepNumber: index + 1,
-        finishReason: stepData.finishReason || null,
-        content: processedContent,
-      };
+      },
     });
 
-    // Collect all executed code from the steps (for backward compatibility)
-    const executedCodes = detailedSteps.flatMap((step) =>
-      step.content
-        .filter((item: any) => item.type === "tool-call" && item.code)
-        .map((item: any) => {
-          // Find matching result
-          const result = step.content.find(
-            (r: any) =>
-              r.type === "tool-result" && r.toolCallId === item.toolCallId
-          );
-          return {
-            code: item.code,
-            success: result?.success ?? true,
-            result: result?.result,
-            error: result?.error,
-          };
-        })
-    );
-
-    return Response.json({
-      success: true,
-      response: text,
-      executedCodes,
-      detailedSteps,
-      stepCount: steps.length,
-      usage,
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+      },
     });
   } catch (error: any) {
     console.error("Agent execution error:", error);
