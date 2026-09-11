@@ -121,103 +121,107 @@
   }
 }
 
-/* Type scale. Use these instead of hand-mixed font-size/leading/tracking. */
+/*
+ * Type scale. Use these instead of hand-mixed font-size/leading/tracking.
+ * Declared with @utility, not @layer components, so Tailwind generates
+ * variants for them (md:text-heading-02, etc.) the same as any other utility.
+ */
+@utility text-heading-01 {
+  font-size: 100px;
+  line-height: 1.1;
+  letter-spacing: 2px;
+}
+
+@utility text-heading-02 {
+  font-size: 67px;
+  line-height: 1.2;
+  letter-spacing: 1.3px;
+}
+
+@utility text-heading-03 {
+  font-size: 50px;
+  line-height: 1.2;
+  letter-spacing: 1px;
+}
+
+@utility text-heading-04 {
+  font-size: 42px;
+  line-height: 1.2;
+  letter-spacing: 0.84px;
+}
+
+@utility text-heading-05 {
+  font-size: 33px;
+  line-height: 1.1;
+  letter-spacing: 0.66px;
+}
+
+@utility text-heading-06 {
+  font-size: 25px;
+  line-height: 1.2;
+  letter-spacing: 0.5px;
+}
+
+@utility text-body-01 {
+  font-size: 21px;
+  line-height: 1.2;
+  letter-spacing: 0.3px;
+}
+
+@utility text-body-02 {
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+@utility text-body-03 {
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+@utility text-body-expanded-01 {
+  font-size: 21px;
+  line-height: 1.6;
+  letter-spacing: 0.3px;
+}
+
+@utility text-label-01 {
+  font-size: 21px;
+  line-height: 1.2;
+  letter-spacing: 0.3px;
+  font-weight: 350;
+}
+
+@utility text-label-02 {
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 350;
+}
+
+@utility text-mono-01 {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  line-height: 1.2;
+  letter-spacing: 0.24px;
+  font-weight: 350;
+}
+
+@utility text-mono-02 {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  line-height: 1.2;
+  letter-spacing: 0.21px;
+  font-weight: 350;
+}
+
+@utility text-tag {
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: 350;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+}
+
 @layer components {
-  .text-heading-01 {
-    font-size: 100px;
-    line-height: 1.1;
-    letter-spacing: 2px;
-  }
-
-  .text-heading-02 {
-    font-size: 67px;
-    line-height: 1.2;
-    letter-spacing: 1.3px;
-  }
-
-  .text-heading-03 {
-    font-size: 50px;
-    line-height: 1.2;
-    letter-spacing: 1px;
-  }
-
-  .text-heading-04 {
-    font-size: 42px;
-    line-height: 1.2;
-    letter-spacing: 0.84px;
-  }
-
-  .text-heading-05 {
-    font-size: 33px;
-    line-height: 1.1;
-    letter-spacing: 0.66px;
-  }
-
-  .text-heading-06 {
-    font-size: 25px;
-    line-height: 1.2;
-    letter-spacing: 0.5px;
-  }
-
-  .text-body-01 {
-    font-size: 21px;
-    line-height: 1.2;
-    letter-spacing: 0.3px;
-  }
-
-  .text-body-02 {
-    font-size: 17px;
-    line-height: 1.2;
-  }
-
-  .text-body-03 {
-    font-size: 15px;
-    line-height: 1.2;
-  }
-
-  .text-body-expanded-01 {
-    font-size: 21px;
-    line-height: 1.6;
-    letter-spacing: 0.3px;
-  }
-
-  .text-label-01 {
-    font-size: 21px;
-    line-height: 1.2;
-    letter-spacing: 0.3px;
-    font-weight: 350;
-  }
-
-  .text-label-02 {
-    font-size: 17px;
-    line-height: 1.2;
-    font-weight: 350;
-  }
-
-  .text-mono-01 {
-    font-family: var(--font-mono);
-    font-size: 17px;
-    line-height: 1.2;
-    letter-spacing: 0.24px;
-    font-weight: 350;
-  }
-
-  .text-mono-02 {
-    font-family: var(--font-mono);
-    font-size: 15px;
-    line-height: 1.2;
-    letter-spacing: 0.21px;
-    font-weight: 350;
-  }
-
-  .text-tag {
-    font-size: 10px;
-    line-height: 1.2;
-    font-weight: 350;
-    letter-spacing: 0.2px;
-    text-transform: uppercase;
-  }
-
   /* shiki output sits inside a charcoal panel */
   .code-surface .shiki {
     background-color: transparent !important;
