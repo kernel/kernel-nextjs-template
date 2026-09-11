@@ -63,6 +63,8 @@ components/
 ├── ai-elements/                # code block and stack trace, styled to the design system
 └── ui/                         # shadcn/ui primitives
 lib/
+├── constants.ts                # shared agent step-count limit
+├── deploy-url.ts                # deploy-with-vercel clone url
 ├── playwright-tool.ts          # the playwright_execute tool
 ├── shiki.ts                    # syntax highlighting
 └── types.ts                    # shared types
@@ -70,7 +72,7 @@ lib/
 
 ## how the streaming works
 
-`/api/agent` builds a `ToolLoopAgent` with `createAgentUIStreamResponse`, so tool calls and results reach the browser as they happen. the sidebar renders the `tool-playwright_execute` parts from `useChat`, which is where the per-step status, code, and return value come from. you see the run while it runs.
+`/api/agent` builds a `ToolLoopAgent` and returns `toUIMessageStreamResponse()`, so tool calls and results reach the browser as they happen. the sidebar renders the `tool-playwright_execute` parts from `useChat`, which is where the per-step status, code, and return value come from. you see the run while it runs.
 
 ## environment
 
@@ -82,6 +84,9 @@ lib/
 ## deploy
 
 push to github and import the repo at [vercel.com/new](https://vercel.com/new), or use the deploy button above. install the [KERNEL integration](https://vercel.com/integrations/kernel) to have `KERNEL_API_KEY` set for you, then add `OPENAI_API_KEY` yourself.
+
+> [!WARNING]
+> `/api/agent` accepts any `sessionId` and runs whatever playwright the model writes against it, with no auth or rate limiting. a public deploy runs on your keys for anyone who finds the url - add access control before sharing a deployed link.
 
 ## links
 
