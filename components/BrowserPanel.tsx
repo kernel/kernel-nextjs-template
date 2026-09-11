@@ -2,17 +2,39 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { HowItWorks } from "@/components/HowItWorks";
 import type { BrowserSession } from "@/lib/types";
+import { useEffect, useState } from "react";
+
+/**
+ * The session's hard deadline, counted from the moment this mounts, which is
+ * when the session was created.
+ */
+function ClosesIn({ expiresAt }: { expiresAt: number }) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <span className="text-mono-02 text-grey-light-11">
+      closes in {Math.max(1, Math.ceil((expiresAt - now) / 60000))}m
+    </span>
+  );
+}
 
 export function BrowserPanel({
   session,
   executions,
   executionMs,
+  expiresAt,
   closing,
   onClose,
 }: {
   session: BrowserSession;
   executions: number;
   executionMs: number;
+  expiresAt: number;
   closing: boolean;
   onClose: () => void;
 }) {
@@ -39,6 +61,7 @@ export function BrowserPanel({
           {session.stealth && (
             <span className="text-mono-02 text-grey-light-11">stealth</span>
           )}
+          <ClosesIn expiresAt={expiresAt} />
         </div>
 
         <Button
