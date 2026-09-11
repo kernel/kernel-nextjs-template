@@ -21,16 +21,19 @@ const CALLS = [
 
 /**
  * The three SDK calls the template makes, with the numbers from the current
- * session when there is one.
+ * session when there is one. Lands as a row of cards on the landing page and as
+ * a list beside the live view.
  */
 export function HowItWorks({
   spinUpTime,
   executions,
   executionMs,
+  layout = "grid",
 }: {
   spinUpTime?: number;
   executions?: number;
   executionMs?: number;
+  layout?: "grid" | "list";
 }) {
   const values: Record<string, string | undefined> = {
     create: spinUpTime === undefined ? undefined : `${spinUpTime}ms`,
@@ -43,13 +46,46 @@ export function HowItWorks({
     delete: undefined,
   };
 
+  if (layout === "list") {
+    return (
+      <div className="divide-y divide-grey-light-07 border border-grey-light-07 bg-beige-light">
+        {CALLS.map((entry) => (
+          <div
+            key={entry.name}
+            className="flex flex-wrap items-baseline gap-x-6 gap-y-1 p-5"
+          >
+            <div className="flex w-24 shrink-0 items-baseline gap-3">
+              <span className="text-tag text-grey-light-11">{entry.name}</span>
+              <span className="text-tag text-grey-light-11">{entry.step}</span>
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="text-mono-02 text-charcoal" data-preserve-case>
+                {entry.call}
+              </p>
+              <p className="text-body-03 mt-2 text-grey-light-11">
+                {entry.body}
+              </p>
+            </div>
+
+            {values[entry.name] && (
+              <p className="text-mono-02 shrink-0 text-kernel-green">
+                {values[entry.name]}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-px border border-grey-light-07 bg-grey-light-07 md:grid-cols-3">
       {CALLS.map((entry) => (
-        <div key={entry.name} className="bg-beige-light p-6">
+        <div key={entry.name} className="bg-beige-light p-5">
           <div className="flex items-baseline justify-between">
             <span className="text-tag text-grey-light-11">{entry.name}</span>
-            <span className="text-mono-02 text-grey-light-11">{entry.step}</span>
+            <span className="text-tag text-grey-light-11">{entry.step}</span>
           </div>
 
           <p className="text-mono-02 mt-4 text-charcoal" data-preserve-case>
