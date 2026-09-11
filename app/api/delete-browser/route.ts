@@ -12,9 +12,10 @@ export async function POST(req: Request) {
   const apiKey = process.env.KERNEL_API_KEY;
 
   if (!apiKey) {
+    // a missing server env var is a server misconfiguration, not a bad request
     return Response.json(
       { error: "KERNEL_API_KEY environment variable is not set" },
-      { status: 400 },
+      { status: 500 },
     );
   }
 
