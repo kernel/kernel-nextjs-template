@@ -43,6 +43,13 @@ export async function POST(req: Request) {
     );
   }
 
+  if (!process.env.OPENAI_API_KEY) {
+    return Response.json(
+      { error: "OPENAI_API_KEY environment variable is not set" },
+      { status: 400 },
+    );
+  }
+
   const kernel = new Kernel({ apiKey });
 
   const agent = new ToolLoopAgent({
@@ -63,5 +70,9 @@ export async function POST(req: Request) {
     abortSignal: req.signal,
   });
 
-  return result.toUIMessageStreamResponse();
+  // this template runs on the deployer's own keys, so the real error is safe
+  // to show them (the ai sdk otherwise masks every failure as one generic string)
+  return result.toUIMessageStreamResponse({
+    onError: (error) => (error instanceof Error ? error.message : "an unexpected error occurred"),
+  });
 }
