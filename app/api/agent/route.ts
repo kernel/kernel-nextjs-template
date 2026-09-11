@@ -1,6 +1,6 @@
 import { openai } from "@ai-sdk/openai";
 import { Kernel } from "@onkernel/sdk";
-import { ToolLoopAgent, createAgentUIStreamResponse, stepCountIs } from "ai";
+import { ToolLoopAgent, convertToModelMessages, stepCountIs } from "ai";
 import { playwrightExecuteTool } from "@/lib/playwright-tool";
 import type { AgentUIMessage } from "@/lib/types";
 
@@ -46,9 +46,14 @@ export async function POST(req: Request) {
     stopWhen: stepCountIs(24),
   });
 
-  return createAgentUIStreamResponse({
-    agent,
-    uiMessages: messages ?? [],
+  // a stopped run leaves a tool call without a result, which the model would
+  // reject on the next turn
+  const result = await agent.stream({
+    messages: await convertToModelMessages(messages ?? [], {
+      ignoreIncompleteToolCalls: true,
+    }),
     abortSignal: req.signal,
   });
+
+  return result.toUIMessageStreamResponse();
 }

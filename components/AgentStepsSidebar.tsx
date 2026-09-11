@@ -85,35 +85,55 @@ function toStep(part: ToolPart, index: number, interrupted: boolean): Step {
   }
 }
 
+type PendingRun = {
+  id: string;
+  task: string;
+  parts: ToolPart[];
+  notes: string[];
+};
+
 function toRuns(messages: AgentUIMessage[], busy: boolean): Run[] {
-  const runs: Run[] = [];
+  const pending: PendingRun[] = [];
 
   for (const message of messages) {
     if (message.role === "user") {
-      runs.push({
+      pending.push({
         id: message.id,
         task: message.parts
           .map((part) => (part.type === "text" ? part.text : ""))
           .join(""),
-        steps: [],
+        parts: [],
         notes: [],
       });
       continue;
     }
 
-    const run = runs.at(-1);
+    const run = pending.at(-1);
     if (!run) continue;
 
     for (const part of message.parts) {
       if (part.type === "tool-playwright_execute") {
-        run.steps.push(toStep(part, run.steps.length + 1, !busy));
+        run.parts.push(part);
       } else if (part.type === "text" && part.text.trim()) {
         run.notes.push(part.text.trim());
       }
     }
   }
 
-  return runs;
+  return pending.map((run, index) => {
+    // only the newest run can still be in flight, so anything unfinished in an
+    // earlier one was interrupted
+    const interrupted = !busy || index < pending.length - 1;
+
+    return {
+      id: run.id,
+      task: run.task,
+      notes: run.notes,
+      steps: run.parts.map((part, stepIndex) =>
+        toStep(part, stepIndex + 1, interrupted),
+      ),
+    };
+  });
 }
 
 function formatResult(result: unknown) {
