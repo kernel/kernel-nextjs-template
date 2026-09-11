@@ -31,11 +31,12 @@ type Step = {
   error?: string;
 };
 
+type RunEntry = { kind: "step"; step: Step } | { kind: "note"; text: string };
+
 type Run = {
   id: string;
   task: string;
-  steps: Step[];
-  notes: string[];
+  entries: RunEntry[];
 };
 
 const EXAMPLES = [
@@ -85,11 +86,12 @@ function toStep(part: ToolPart, index: number, interrupted: boolean): Step {
   }
 }
 
+type PendingEntry = { kind: "step"; part: ToolPart } | { kind: "note"; text: string };
+
 type PendingRun = {
   id: string;
   task: string;
-  parts: ToolPart[];
-  notes: string[];
+  entries: PendingEntry[];
 };
 
 function toRuns(messages: AgentUIMessage[], busy: boolean): Run[] {
@@ -102,8 +104,7 @@ function toRuns(messages: AgentUIMessage[], busy: boolean): Run[] {
         task: message.parts
           .map((part) => (part.type === "text" ? part.text : ""))
           .join(""),
-        parts: [],
-        notes: [],
+        entries: [],
       });
       continue;
     }
@@ -113,9 +114,9 @@ function toRuns(messages: AgentUIMessage[], busy: boolean): Run[] {
 
     for (const part of message.parts) {
       if (part.type === "tool-playwright_execute") {
-        run.parts.push(part);
+        run.entries.push({ kind: "step", part });
       } else if (part.type === "text" && part.text.trim()) {
-        run.notes.push(part.text.trim());
+        run.entries.push({ kind: "note", text: part.text.trim() });
       }
     }
   }
@@ -124,13 +125,15 @@ function toRuns(messages: AgentUIMessage[], busy: boolean): Run[] {
     // only the newest run can still be in flight, so anything unfinished in an
     // earlier one was interrupted
     const interrupted = !busy || index < pending.length - 1;
+    let stepIndex = 0;
 
     return {
       id: run.id,
       task: run.task,
-      notes: run.notes,
-      steps: run.parts.map((part, stepIndex) =>
-        toStep(part, stepIndex + 1, interrupted),
+      entries: run.entries.map((entry) =>
+        entry.kind === "step"
+          ? { kind: "step" as const, step: toStep(entry.part, ++stepIndex, interrupted) }
+          : entry,
       ),
     };
   });
@@ -159,10 +162,12 @@ export function AgentStepsSidebar({
   const scrollArea = useRef<HTMLDivElement>(null);
   const busy = status === "submitted" || status === "streaming";
   const runs = useMemo(() => toRuns(messages, busy), [messages, busy]);
-  const stepCount = runs.reduce((total, run) => total + run.steps.length, 0);
+  const stepCount = runs.reduce(
+    (total, run) => total + run.entries.filter((entry) => entry.kind === "step").length,
+    0,
+  );
   const lastRun = runs.at(-1);
-  const waiting =
-    busy && (!lastRun || (lastRun.steps.length === 0 && lastRun.notes.length === 0));
+  const waiting = busy && (!lastRun || lastRun.entries.length === 0);
 
   // follow the stream, but leave the scroll position alone if the reader moved away
   useEffect(() => {
@@ -221,18 +226,19 @@ export function AgentStepsSidebar({
                   {run.task}
                 </p>
 
-                {run.steps.map((step) => (
-                  <StepCard key={step.id} step={step} />
-                ))}
-
-                {run.notes.map((note, index) => (
-                  <p
-                    key={index}
-                    className="border-l-2 border-kernel-green pl-3 text-body-03 text-grey-light-11"
-                  >
-                    {note}
-                  </p>
-                ))}
+                {run.entries.map((entry, index) =>
+                  entry.kind === "step" ? (
+                    <StepCard key={entry.step.id} step={entry.step} />
+                  ) : (
+                    <p
+                      key={index}
+                      className="border-l-2 border-kernel-green pl-3 text-body-03 text-grey-light-11"
+                      data-preserve-case
+                    >
+                      {entry.text}
+                    </p>
+                  ),
+                )}
               </li>
             ))}
           </ol>
