@@ -186,7 +186,7 @@ export function AgentStepsSidebar({
     <aside className="flex w-full flex-col border border-grey-light-07 bg-beige lg:h-full lg:min-h-0 lg:w-[420px] lg:shrink-0 xl:w-[480px]">
       <header className="flex items-center justify-between gap-2 border-b border-grey-light-07 px-4 py-3">
         <h2 className="text-label-02 text-charcoal">agent steps</h2>
-        <Badge>{stepCount} steps</Badge>
+        <Badge>{stepCount} {stepCount === 1 ? "step" : "steps"}</Badge>
       </header>
 
       <div ref={scrollArea} className="min-h-0 flex-1 overflow-y-auto">
@@ -274,7 +274,7 @@ export function AgentStepsSidebar({
         />
 
         <div className="mt-3 flex items-center justify-between gap-3">
-          <span className="text-tag text-grey-light-11">cmd + enter</span>
+          <span className="text-tag text-grey-light-11">cmd/ctrl + enter</span>
           <div className="flex items-center gap-2">
             {busy && (
               <Button variant="outline" size="sm" type="button" onClick={onStop}>
