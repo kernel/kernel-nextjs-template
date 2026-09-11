@@ -27,8 +27,10 @@ export async function POST() {
       headless: false,
       // a smaller window than the 1920x1080 default keeps the live view readable
       viewport: { width: 1280, height: 800, refresh_rate: 60 },
-      // keep the session around long enough to run a few tasks against it
-      timeout_seconds: 300,
+      // /api/agent's own maxDuration is 300s, so a session timeout of the same
+      // length can expire mid-run for a task started any time after creation.
+      // give it much more headroom than a single run needs.
+      timeout_seconds: 1800,
     });
 
     return NextResponse.json({
