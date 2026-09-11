@@ -17,7 +17,7 @@ export function BrowserPanel({
   onClose: () => void;
 }) {
   return (
-    <section className="flex min-w-0 flex-1 flex-col gap-4">
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
           <Badge className="gap-2">
@@ -51,11 +51,11 @@ export function BrowserPanel({
         </Button>
       </div>
 
-      <div className="border border-charcoal bg-charcoal">
+      <div className="flex min-h-0 flex-1 border border-charcoal bg-charcoal">
         <iframe
           src={session.liveViewUrl}
           title="KERNEL browser live view"
-          className="aspect-[16/10] w-full"
+          className="h-full w-full"
           allow="camera; microphone; display-capture"
         />
       </div>

@@ -13,6 +13,7 @@ import { HowItWorks } from "@/components/HowItWorks";
 import { StackTrace } from "@/components/ai-elements/stack-trace";
 import { Button } from "@/components/ui/button";
 import type { AgentUIMessage, BrowserSession } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const transport = new DefaultChatTransport<AgentUIMessage>({
   api: "/api/agent",
@@ -115,40 +116,49 @@ export default function HomePage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div
+      className={cn(
+        "flex flex-col",
+        // with a session open the page holds one screen and the steps pane is
+        // the only thing that scrolls
+        session ? "lg:h-dvh lg:overflow-hidden" : "min-h-screen",
+      )}
+    >
       <Header />
 
-      <main className="mx-auto w-full max-w-[1312px] flex-1 px-4 py-8 md:px-8 lg:px-16 lg:py-12">
+      <main
+        className={cn(
+          "mx-auto w-full max-w-[1312px] flex-1 px-4 md:px-8 lg:px-16",
+          session ? "flex min-h-0 flex-col py-4" : "py-8 lg:py-12",
+        )}
+      >
         {session ? (
-          <div className="space-y-6">
+          <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row">
             {error && (
               <StackTrace
                 error={error}
                 className="border-0 bg-transparent p-0"
               />
             )}
-
-            <div className="flex flex-col gap-6 lg:flex-row">
-              <BrowserPanel
-                session={session}
-                executions={stats.executions}
-                executionMs={stats.executionMs}
-                closing={closing}
-                onClose={closeBrowser}
-              />
-              <AgentStepsSidebar
-                messages={messages}
-                status={status}
-                error={chatError}
-                onSend={(task) =>
-                  sendMessage(
-                    { text: task },
-                    { body: { sessionId: session.sessionId } },
-                  )
-                }
-                onStop={stop}
-              />
-            </div>
+            <BrowserPanel
+              session={session}
+              executions={stats.executions}
+              executionMs={stats.executionMs}
+              closing={closing}
+              onClose={closeBrowser}
+            />
+            <AgentStepsSidebar
+              messages={messages}
+              status={status}
+              error={chatError}
+              onSend={(task) =>
+                sendMessage(
+                  { text: task },
+                  { body: { sessionId: session.sessionId } },
+                )
+              }
+              onStop={stop}
+            />
           </div>
         ) : (
           <div className="space-y-12">
@@ -208,22 +218,24 @@ export default function HomePage() {
         )}
       </main>
 
-      <footer className="border-t border-grey-light-07">
-        <div className="mx-auto flex max-w-[1312px] flex-wrap items-center justify-between gap-4 px-4 py-8 md:px-8 lg:px-16">
-          <p className="text-body-03 text-grey-light-11">
-            powered by <a href="https://kernel.sh">KERNEL</a>, the{" "}
-            <a href="https://ai-sdk.dev">vercel ai sdk</a>, and{" "}
-            <a href="https://vercel.com">vercel</a>.
-          </p>
-          <nav className="flex gap-6 text-body-03 text-grey-light-11">
-            <a href="https://kernel.sh/docs">docs</a>
-            <a href="https://dashboard.onkernel.com">dashboard</a>
-            <a href="https://github.com/kernel/kernel-nextjs-template">
-              github
-            </a>
-          </nav>
-        </div>
-      </footer>
+      {!session && (
+        <footer className="border-t border-grey-light-07">
+          <div className="mx-auto flex max-w-[1312px] flex-wrap items-center justify-between gap-4 px-4 py-8 md:px-8 lg:px-16">
+            <p className="text-body-03 text-grey-light-11">
+              powered by <a href="https://kernel.sh">KERNEL</a>, the{" "}
+              <a href="https://ai-sdk.dev">vercel ai sdk</a>, and{" "}
+              <a href="https://vercel.com">vercel</a>.
+            </p>
+            <nav className="flex gap-6 text-body-03 text-grey-light-11">
+              <a href="https://kernel.sh/docs">docs</a>
+              <a href="https://dashboard.onkernel.com">dashboard</a>
+              <a href="https://github.com/kernel/kernel-nextjs-template">
+                github
+              </a>
+            </nav>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }

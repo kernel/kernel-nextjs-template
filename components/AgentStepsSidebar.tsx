@@ -183,13 +183,13 @@ export function AgentStepsSidebar({
   };
 
   return (
-    <aside className="flex w-full flex-col border border-grey-light-07 bg-beige lg:h-[calc(100vh-8rem)] lg:w-[420px] lg:shrink-0 xl:w-[480px]">
+    <aside className="flex w-full flex-col border border-grey-light-07 bg-beige lg:h-full lg:min-h-0 lg:w-[420px] lg:shrink-0 xl:w-[480px]">
       <header className="flex items-center justify-between gap-2 border-b border-grey-light-07 px-4 py-3">
         <h2 className="text-label-02 text-charcoal">agent steps</h2>
         <Badge>{stepCount} steps</Badge>
       </header>
 
-      <div ref={scrollArea} className="flex-1 overflow-y-auto">
+      <div ref={scrollArea} className="min-h-0 flex-1 overflow-y-auto">
         {runs.length === 0 ? (
           <div className="space-y-4 p-4">
             <p className="text-body-03 text-grey-light-11">
