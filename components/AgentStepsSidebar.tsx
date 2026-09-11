@@ -45,7 +45,12 @@ const EXAMPLES = [
   "search wikipedia for chromium and return the first paragraph",
 ];
 
-function toStep(part: ToolPart, index: number, interrupted: boolean): Step {
+function toStep(
+  part: ToolPart,
+  index: number,
+  interrupted: boolean,
+  interruptedState: "cancelled" | "failed",
+): Step {
   const code = part.input?.code;
 
   switch (part.state) {
@@ -53,14 +58,14 @@ function toStep(part: ToolPart, index: number, interrupted: boolean): Step {
       return {
         id: part.toolCallId,
         index,
-        state: interrupted ? "cancelled" : "writing",
+        state: interrupted ? interruptedState : "writing",
         code,
       };
     case "input-available":
       return {
         id: part.toolCallId,
         index,
-        state: interrupted ? "cancelled" : "running",
+        state: interrupted ? interruptedState : "running",
         code: part.input.code,
       };
     case "output-available":
@@ -94,7 +99,8 @@ type PendingRun = {
   entries: PendingEntry[];
 };
 
-function toRuns(messages: AgentUIMessage[], busy: boolean): Run[] {
+function toRuns(messages: AgentUIMessage[], status: ChatStatus): Run[] {
+  const busy = status === "submitted" || status === "streaming";
   const pending: PendingRun[] = [];
 
   for (const message of messages) {
@@ -122,9 +128,13 @@ function toRuns(messages: AgentUIMessage[], busy: boolean): Run[] {
   }
 
   return pending.map((run, index) => {
+    const isLastRun = index === pending.length - 1;
     // only the newest run can still be in flight, so anything unfinished in an
     // earlier one was interrupted
-    const interrupted = !busy || index < pending.length - 1;
+    const interrupted = !busy || !isLastRun;
+    // a run left unfinished by a server error failed, it wasn't cancelled -
+    // only the newest run's own status can tell the two apart
+    const interruptedState = isLastRun && status === "error" ? "failed" : "cancelled";
     let stepIndex = 0;
 
     return {
@@ -132,7 +142,10 @@ function toRuns(messages: AgentUIMessage[], busy: boolean): Run[] {
       task: run.task,
       entries: run.entries.map((entry) =>
         entry.kind === "step"
-          ? { kind: "step" as const, step: toStep(entry.part, ++stepIndex, interrupted) }
+          ? {
+              kind: "step" as const,
+              step: toStep(entry.part, ++stepIndex, interrupted, interruptedState),
+            }
           : entry,
       ),
     };
@@ -161,7 +174,7 @@ export function AgentStepsSidebar({
   const [draft, setDraft] = useState("");
   const scrollArea = useRef<HTMLDivElement>(null);
   const busy = status === "submitted" || status === "streaming";
-  const runs = useMemo(() => toRuns(messages, busy), [messages, busy]);
+  const runs = useMemo(() => toRuns(messages, status), [messages, status]);
   const stepCount = runs.reduce(
     (total, run) => total + run.entries.filter((entry) => entry.kind === "step").length,
     0,
