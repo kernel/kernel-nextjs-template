@@ -4,7 +4,7 @@ import { DefaultChatTransport } from "ai";
 import { useChat } from "@ai-sdk/react";
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { AgentStepsSidebar } from "@/components/AgentStepsSidebar";
 import { BrowserPanel } from "@/components/BrowserPanel";
@@ -69,7 +69,6 @@ export default function HomePage() {
           spinUpTime: data.spinUpTime,
           region: data.region,
           stealth: data.stealth,
-          expiresAt: data.expiresAt,
         });
       } else {
         if (data.error === "MISSING_API_KEY" && data.deployUrl) {
@@ -84,7 +83,7 @@ export default function HomePage() {
     }
   };
 
-  const closeBrowser = useCallback(async () => {
+  const closeBrowser = async () => {
     if (!session) return;
 
     // a run in flight would keep executing against a session we are about to delete
@@ -114,27 +113,7 @@ export default function HomePage() {
     } finally {
       setClosing(false);
     }
-  }, [session, stop, setMessages]);
-
-  // keep the timer's callback current without restarting the timer on every render
-  const closeBrowserRef = useRef(closeBrowser);
-  useEffect(() => {
-    closeBrowserRef.current = closeBrowser;
-  });
-
-  // the session has a hard lifetime, so nothing outlives it. a short interval
-  // rather than one long timeout: browsers clamp long timers, and this also
-  // survives the tab being asleep
-  useEffect(() => {
-    if (!session) return;
-
-    const { expiresAt } = session;
-    const check = setInterval(() => {
-      if (Date.now() >= expiresAt) closeBrowserRef.current();
-    }, 5000);
-
-    return () => clearInterval(check);
-  }, [session]);
+  };
 
   return (
     <div
@@ -169,7 +148,6 @@ export default function HomePage() {
                 session={session}
                 executions={stats.executions}
                 executionMs={stats.executionMs}
-                expiresAt={session.expiresAt}
                 closing={closing}
                 onClose={closeBrowser}
               />

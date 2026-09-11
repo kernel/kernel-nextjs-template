@@ -24,6 +24,4 @@ export type BrowserSession = {
   spinUpTime: number;
   region: string;
   stealth: boolean;
-  /** when the session is destroyed regardless of use */
-  expiresAt: number;
 };

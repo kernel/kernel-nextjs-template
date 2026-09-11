@@ -63,14 +63,9 @@ components/
 └── ui/                         # shadcn/ui primitives
 lib/
 ├── playwright-tool.ts          # the playwright_execute tool
-├── session.ts                  # how long a session lives, and its tag
 ├── shiki.ts                    # syntax highlighting
 └── types.ts                    # shared types
 ```
-
-## how long a session lives
-
-every session this app creates is tagged, has a ten minute lifetime, and is destroyed at the end of it whether or not anyone is using it. three things enforce that: the page closes the session itself when the clock runs out (`lib/session.ts`), the browser is closed after five idle minutes if nobody is watching, and every new session sweeps any of this app's sessions that are already past the deadline. change the lifetime with `SESSION_TTL_MS`.
 
 ## how the streaming works
 
