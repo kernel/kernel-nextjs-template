@@ -1,6 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import { Kernel } from "@onkernel/sdk";
 import { ToolLoopAgent, convertToModelMessages, stepCountIs } from "ai";
+import { AGENT_STEP_LIMIT } from "@/lib/constants";
 import { playwrightExecuteTool } from "@/lib/playwright-tool";
 import type { AgentUIMessage } from "@/lib/types";
 
@@ -15,6 +16,7 @@ how to work:
 - the return value is the only thing you get back, so return the data the task asks for.
 - when a selector misses, inspect the page instead of guessing the same selector again.
 - finish with one or two sentences of plain prose. no preamble, no restating the task.
+- you have a hard budget of ${AGENT_STEP_LIMIT} tool calls for this task. if you can tell you won't finish in time, say so plainly in your closing sentence instead of trailing off mid-task.
 
 timeouts:
 - playwright waits 30 seconds before every locator action gives up, which is far longer than anyone is watching. never leave that default in place.
@@ -58,7 +60,7 @@ export async function POST(req: Request) {
     tools: {
       playwright_execute: playwrightExecuteTool({ client: kernel, sessionId }),
     },
-    stopWhen: stepCountIs(24),
+    stopWhen: stepCountIs(AGENT_STEP_LIMIT),
   });
 
   // a stopped run leaves a tool call without a result, which the model would

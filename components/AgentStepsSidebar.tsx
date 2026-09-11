@@ -14,6 +14,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Textarea } from "@/components/ui/textarea";
+import { AGENT_STEP_LIMIT } from "@/lib/constants";
 import type { AgentUIMessage } from "@/lib/types";
 
 type ToolPart = Extract<
@@ -230,30 +231,46 @@ export function AgentStepsSidebar({
           </div>
         ) : (
           <ol className="divide-y divide-grey-light-07">
-            {runs.map((run) => (
-              <li key={run.id} className="space-y-3 p-4">
-                <p
-                  className="text-body-02 text-charcoal"
-                  data-preserve-case
-                >
-                  {run.task}
-                </p>
+            {runs.map((run, runIndex) => {
+              const stepsInRun = run.entries.filter(
+                (entry) => entry.kind === "step",
+              ).length;
+              const hitStepLimit =
+                runIndex === runs.length - 1 &&
+                !busy &&
+                stepsInRun >= AGENT_STEP_LIMIT;
 
-                {run.entries.map((entry, index) =>
-                  entry.kind === "step" ? (
-                    <StepCard key={entry.step.id} step={entry.step} />
-                  ) : (
-                    <p
-                      key={index}
-                      className="border-l-2 border-kernel-green pl-3 text-body-03 text-grey-light-11"
-                      data-preserve-case
-                    >
-                      {entry.text}
+              return (
+                <li key={run.id} className="space-y-3 p-4">
+                  <p
+                    className="text-body-02 text-charcoal"
+                    data-preserve-case
+                  >
+                    {run.task}
+                  </p>
+
+                  {run.entries.map((entry, index) =>
+                    entry.kind === "step" ? (
+                      <StepCard key={entry.step.id} step={entry.step} />
+                    ) : (
+                      <p
+                        key={index}
+                        className="border-l-2 border-kernel-green pl-3 text-body-03 text-grey-light-11"
+                        data-preserve-case
+                      >
+                        {entry.text}
+                      </p>
+                    ),
+                  )}
+
+                  {hitStepLimit && (
+                    <p className="text-tag text-grey-light-11">
+                      stopped at the {AGENT_STEP_LIMIT}-step limit for this task
                     </p>
-                  ),
-                )}
-              </li>
-            ))}
+                  )}
+                </li>
+              );
+            })}
           </ol>
         )}
 
