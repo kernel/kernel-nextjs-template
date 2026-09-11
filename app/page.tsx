@@ -157,9 +157,9 @@ export default function HomePage() {
                 instant browser infra for your next.js agent
               </h1>
               <p className="text-body-expanded-01 text-grey-light-11">
-                one call gives you a chromium session with a live view. describe
+                one call gives you a browser vm session with a live view. describe
                 a task, and a gpt-5.4 agent writes playwright, runs it in the
-                browser vm, and returns the value. every generated line stays
+                same vm, and returns the value. every generated line stays
                 visible next to the browser it ran in.
               </p>
               <div className="flex flex-wrap items-center gap-3">

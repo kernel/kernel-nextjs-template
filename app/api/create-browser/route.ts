@@ -25,8 +25,8 @@ export async function POST() {
     const browser = await kernel.browsers.create({
       stealth: true,
       headless: false,
-      // a small window keeps the live view readable in the page
-      viewport: { width: 1024, height: 768, refresh_rate: 60 },
+      // a smaller window than the 1920x1080 default keeps the live view readable
+      viewport: { width: 1280, height: 800, refresh_rate: 60 },
       // keep the session around long enough to run a few tasks against it
       timeout_seconds: 300,
     });

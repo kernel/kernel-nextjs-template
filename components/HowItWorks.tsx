@@ -3,7 +3,7 @@ const CALLS = [
     step: "01",
     name: "create",
     call: "kernel.browsers.create()",
-    body: "KERNEL provisions a chromium session and hands back a live view url and a cdp endpoint.",
+    body: "KERNEL provisions a browser vm and hands back a live view url and a cdp endpoint.",
   },
   {
     step: "02",
