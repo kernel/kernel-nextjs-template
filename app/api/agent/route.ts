@@ -14,7 +14,13 @@ how to work:
 - one atomic step per call: navigate, then inspect, then act, then extract. short snippets beat long scripts.
 - the return value is the only thing you get back, so return the data the task asks for.
 - when a selector misses, inspect the page instead of guessing the same selector again.
-- finish with one or two sentences of plain prose. no preamble, no restating the task.`;
+- finish with one or two sentences of plain prose. no preamble, no restating the task.
+
+timeouts:
+- playwright waits 30 seconds before every locator action gives up, which is far longer than anyone is watching. never leave that default in place.
+- open a snippet that touches a selector with \`page.setDefaultTimeout(5000)\`, or pass \`{ timeout: 5000 }\` to the action itself. use up to 15000 for \`page.goto\` on a heavy site, and nothing higher unless the task says otherwise.
+- keep waits you write yourself short too: \`waitForSelector(selector, { timeout: 5000 })\`.
+- to read a value that may not be there, check first (\`await locator.count()\`, \`isVisible()\`) and skip the row, instead of awaiting the text and catching the failure. a \`.catch()\` does not shorten the 30 second wait it is wrapping.`;
 
 export async function POST(req: Request) {
   const { messages, sessionId } = (await req.json()) as {

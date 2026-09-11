@@ -26,13 +26,13 @@ export function playwrightExecuteTool({
 }) {
   return tool({
     description:
-      "Execute playwright code in the running KERNEL browser session. The code runs in the same vm as the browser and has `page`, `context`, `browser`, and `webmcp` in scope. Return a value to pass it back to the model.",
+      "Execute playwright code in the running KERNEL browser session. The code runs in the same vm as the browser and has `page`, `context`, `browser`, and `webmcp` in scope. Return a value to pass it back to the model. Playwright's own waits default to 30 seconds, so set a short timeout for anything the code has to wait on.",
     inputSchema: z.object({
       code: z
         .string()
         .min(1)
         .describe(
-          "javascript that runs inside the browser vm. use a `return` statement for any value the model needs back.",
+          "javascript that runs inside the browser vm. use a `return` statement for any value the model needs back. keep it fast: call `page.setDefaultTimeout(5000)` before touching selectors, or pass `{ timeout: 5000 }` per action.",
         ),
       timeout_sec: z
         .number()
