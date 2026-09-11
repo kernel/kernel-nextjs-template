@@ -13,15 +13,20 @@ export function CodeBlock({
   code,
   label = "playwright",
   className,
+  streaming = false,
 }: {
   code: string;
   label?: string;
   className?: string;
+  /** while true, skip highlighting - the plain <pre> fallback already reads fine */
+  streaming?: boolean;
 }) {
   const [html, setHtml] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
 
   useEffect(() => {
+    if (streaming) return;
+
     let cancelled = false;
 
     getHighlighter()
@@ -38,7 +43,7 @@ export function CodeBlock({
     return () => {
       cancelled = true;
     };
-  }, [code]);
+  }, [code, streaming]);
 
   const copy = async () => {
     try {

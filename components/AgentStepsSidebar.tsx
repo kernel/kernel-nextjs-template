@@ -348,7 +348,11 @@ function StepCard({ step }: { step: Step }) {
 
       <div className="space-y-3 p-3">
         {step.code ? (
-          <CodeBlock code={step.code} label="generated playwright" />
+          <CodeBlock
+            code={step.code}
+            label="generated playwright"
+            streaming={step.state === "writing"}
+          />
         ) : (
           <p className="text-mono-02 text-grey-light-11">waiting for code</p>
         )}
