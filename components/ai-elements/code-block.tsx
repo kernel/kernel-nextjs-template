@@ -19,7 +19,7 @@ export function CodeBlock({
   className?: string;
 }) {
   const [html, setHtml] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
 
   useEffect(() => {
     let cancelled = false;
@@ -30,6 +30,9 @@ export function CodeBlock({
       )
       .then((result) => {
         if (!cancelled) setHtml(result);
+      })
+      .catch(() => {
+        // leave html null - the plain <pre> fallback below already covers this
       });
 
     return () => {
@@ -38,9 +41,14 @@ export function CodeBlock({
   }, [code]);
 
   const copy = async () => {
-    await navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopyState("copied");
+    } catch {
+      setCopyState("failed");
+    } finally {
+      setTimeout(() => setCopyState("idle"), 1500);
+    }
   };
 
   return (
@@ -52,8 +60,12 @@ export function CodeBlock({
           onClick={copy}
           className="flex items-center gap-1 text-tag text-grey-dark-12/64 transition-colors hover:text-grey-dark-12"
         >
-          {copied ? <Check size={12} /> : <Copy size={12} />}
-          {copied ? "copied" : "copy"}
+          {copyState === "copied" ? <Check size={12} /> : <Copy size={12} />}
+          {copyState === "copied"
+            ? "copied"
+            : copyState === "failed"
+              ? "copy failed"
+              : "copy"}
         </button>
       </div>
 
