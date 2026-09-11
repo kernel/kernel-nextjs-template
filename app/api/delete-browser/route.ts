@@ -1,11 +1,13 @@
 import { Kernel, NotFoundError } from "@onkernel/sdk";
 
 export async function POST(req: Request) {
-  const { sessionId } = await req.json();
+  const body = (await req.json().catch(() => null)) as { sessionId?: string } | null;
 
-  if (!sessionId) {
+  if (!body?.sessionId) {
     return Response.json({ error: "missing sessionId" }, { status: 400 });
   }
+
+  const { sessionId } = body;
 
   const apiKey = process.env.KERNEL_API_KEY;
 

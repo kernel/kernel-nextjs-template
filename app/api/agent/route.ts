@@ -23,14 +23,16 @@ timeouts:
 - to read a value that may not be there, check first (\`await locator.count()\`, \`isVisible()\`) and skip the row, instead of awaiting the text and catching the failure. a \`.catch()\` does not shorten the 30 second wait it is wrapping.`;
 
 export async function POST(req: Request) {
-  const { messages, sessionId } = (await req.json()) as {
+  const body = (await req.json().catch(() => null)) as {
     messages?: AgentUIMessage[];
     sessionId?: string;
-  };
+  } | null;
 
-  if (!sessionId) {
+  if (!body?.sessionId) {
     return Response.json({ error: "missing sessionId" }, { status: 400 });
   }
+
+  const { messages, sessionId } = body;
 
   const apiKey = process.env.KERNEL_API_KEY;
 
