@@ -30,6 +30,7 @@ type Step = {
   durationMs?: number;
   result?: unknown;
   error?: string;
+  stderr?: string;
 };
 
 type RunEntry = { kind: "step"; step: Step } | { kind: "note"; text: string };
@@ -78,6 +79,7 @@ function toStep(
         durationMs: part.output.durationMs,
         result: part.output.result,
         error: part.output.error,
+        stderr: part.output.stderr,
       };
     case "output-error":
       return {
@@ -352,6 +354,18 @@ function StepCard({ step }: { step: Step }) {
         )}
 
         {step.error && <StackTrace error={step.error} />}
+
+        {step.state === "failed" && step.stderr && (
+          <div className="space-y-1">
+            <p className="text-tag text-grey-light-11">stderr</p>
+            <pre
+              className="max-h-40 overflow-auto border border-grey-light-07 bg-beige p-3 text-mono-02 whitespace-pre-wrap text-charcoal"
+              data-preserve-case
+            >
+              {step.stderr}
+            </pre>
+          </div>
+        )}
 
         {result && (
           <Collapsible>
