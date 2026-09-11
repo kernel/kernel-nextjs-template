@@ -85,19 +85,30 @@ export default function HomePage() {
   const closeBrowser = async () => {
     if (!session) return;
 
+    // a run in flight would keep executing against a session we are about to delete
+    stop();
     setClosing(true);
 
     try {
-      await fetch("/api/delete-browser", {
+      const response = await fetch("/api/delete-browser", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId: session.sessionId }),
       });
+      const data = await response.json();
 
+      if (!data.success) {
+        setError(data.error ?? "failed to close the browser");
+        return;
+      }
+
+      setError(null);
       setSession(null);
       setMessages([]);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "failed to close browser");
+      setError(
+        caught instanceof Error ? caught.message : "failed to close the browser",
+      );
     } finally {
       setClosing(false);
     }
@@ -109,23 +120,35 @@ export default function HomePage() {
 
       <main className="mx-auto w-full max-w-[1312px] flex-1 px-4 py-8 md:px-8 lg:px-16 lg:py-12">
         {session ? (
-          <div className="flex flex-col gap-6 lg:flex-row">
-            <BrowserPanel
-              session={session}
-              executions={stats.executions}
-              executionMs={stats.executionMs}
-              closing={closing}
-              onClose={closeBrowser}
-            />
-            <AgentStepsSidebar
-              messages={messages}
-              status={status}
-              error={chatError}
-              onSend={(task) =>
-                sendMessage({ text: task }, { body: { sessionId: session.sessionId } })
-              }
-              onStop={stop}
-            />
+          <div className="space-y-6">
+            {error && (
+              <StackTrace
+                error={error}
+                className="border-0 bg-transparent p-0"
+              />
+            )}
+
+            <div className="flex flex-col gap-6 lg:flex-row">
+              <BrowserPanel
+                session={session}
+                executions={stats.executions}
+                executionMs={stats.executionMs}
+                closing={closing}
+                onClose={closeBrowser}
+              />
+              <AgentStepsSidebar
+                messages={messages}
+                status={status}
+                error={chatError}
+                onSend={(task) =>
+                  sendMessage(
+                    { text: task },
+                    { body: { sessionId: session.sessionId } },
+                  )
+                }
+                onStop={stop}
+              />
+            </div>
           </div>
         ) : (
           <div className="space-y-12">

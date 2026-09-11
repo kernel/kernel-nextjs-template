@@ -49,5 +49,6 @@ export async function POST(req: Request) {
   return createAgentUIStreamResponse({
     agent,
     uiMessages: messages ?? [],
+    abortSignal: req.signal,
   });
 }

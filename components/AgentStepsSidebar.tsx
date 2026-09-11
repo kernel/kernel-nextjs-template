@@ -24,7 +24,7 @@ type ToolPart = Extract<
 type Step = {
   id: string;
   index: number;
-  state: "writing" | "running" | "done" | "failed";
+  state: "writing" | "running" | "done" | "failed" | "cancelled";
   code?: string;
   durationMs?: number;
   result?: unknown;
@@ -44,14 +44,24 @@ const EXAMPLES = [
   "search wikipedia for chromium and return the first paragraph",
 ];
 
-function toStep(part: ToolPart, index: number): Step {
+function toStep(part: ToolPart, index: number, interrupted: boolean): Step {
   const code = part.input?.code;
 
   switch (part.state) {
     case "input-streaming":
-      return { id: part.toolCallId, index, state: "writing", code };
+      return {
+        id: part.toolCallId,
+        index,
+        state: interrupted ? "cancelled" : "writing",
+        code,
+      };
     case "input-available":
-      return { id: part.toolCallId, index, state: "running", code: part.input.code };
+      return {
+        id: part.toolCallId,
+        index,
+        state: interrupted ? "cancelled" : "running",
+        code: part.input.code,
+      };
     case "output-available":
       return {
         id: part.toolCallId,
@@ -75,7 +85,7 @@ function toStep(part: ToolPart, index: number): Step {
   }
 }
 
-function toRuns(messages: AgentUIMessage[]): Run[] {
+function toRuns(messages: AgentUIMessage[], busy: boolean): Run[] {
   const runs: Run[] = [];
 
   for (const message of messages) {
@@ -96,7 +106,7 @@ function toRuns(messages: AgentUIMessage[]): Run[] {
 
     for (const part of message.parts) {
       if (part.type === "tool-playwright_execute") {
-        run.steps.push(toStep(part, run.steps.length + 1));
+        run.steps.push(toStep(part, run.steps.length + 1, !busy));
       } else if (part.type === "text" && part.text.trim()) {
         run.notes.push(part.text.trim());
       }
@@ -127,8 +137,8 @@ export function AgentStepsSidebar({
 }) {
   const [draft, setDraft] = useState("");
   const scrollArea = useRef<HTMLDivElement>(null);
-  const runs = useMemo(() => toRuns(messages), [messages]);
   const busy = status === "submitted" || status === "streaming";
+  const runs = useMemo(() => toRuns(messages, busy), [messages, busy]);
   const stepCount = runs.reduce((total, run) => total + run.steps.length, 0);
   const lastRun = runs.at(-1);
   const waiting =
@@ -323,6 +333,10 @@ function StepStatus({ step }: { step: Step }) {
 
   if (step.state === "failed") {
     return <span className="text-tag text-charcoal">failed</span>;
+  }
+
+  if (step.state === "cancelled") {
+    return <span className="text-tag text-grey-light-11">cancelled</span>;
   }
 
   return (
