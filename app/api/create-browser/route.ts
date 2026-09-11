@@ -1,8 +1,6 @@
 import { Kernel } from "@onkernel/sdk";
 import { NextResponse } from "next/server";
-
-const DEPLOY_URL =
-  "https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fkernel%2Fkernel-nextjs-template&env=OPENAI_API_KEY&project-name=kernel-nextjs-template&repository-name=kernel-nextjs-template&products=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22kernel%22%2C%22productSlug%22%3A%22kernel%22%2C%22protocol%22%3A%22other%22%7D%5D";
+import { DEPLOY_URL } from "@/lib/deploy-url";
 
 export async function POST() {
   const apiKey = process.env.KERNEL_API_KEY;
