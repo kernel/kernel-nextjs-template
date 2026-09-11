@@ -55,7 +55,7 @@ export function BrowserPanel({
         <iframe
           src={session.liveViewUrl}
           title="KERNEL browser live view"
-          className="aspect-[16/10] w-full lg:h-full lg:w-auto"
+          className="aspect-[16/10] w-full lg:h-full lg:w-auto lg:max-w-full"
           allow="camera; microphone; display-capture"
         />
       </div>
