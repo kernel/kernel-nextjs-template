@@ -129,11 +129,13 @@ export default function HomePage() {
       <main
         className={cn(
           "mx-auto w-full max-w-[1312px] flex-1 px-4 md:px-8 lg:px-16",
-          session ? "flex min-h-0 flex-col py-4" : "py-8 lg:py-12",
+          session
+            ? "flex min-h-0 flex-col justify-center py-4"
+            : "py-8 lg:py-12",
         )}
       >
         {session ? (
-          <div className="flex min-h-0 flex-1 flex-col gap-4">
+          <div className="flex min-h-0 w-full flex-col gap-4">
             {error && (
               <StackTrace
                 error={error}
@@ -141,7 +143,7 @@ export default function HomePage() {
               />
             )}
 
-            <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row">
+            <div className="flex min-h-0 flex-col gap-6 lg:h-[820px] lg:max-h-full lg:flex-row">
               <BrowserPanel
                 session={session}
                 executions={stats.executions}

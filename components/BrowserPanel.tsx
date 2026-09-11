@@ -51,21 +51,25 @@ export function BrowserPanel({
         </Button>
       </div>
 
-      <div className="flex min-h-0 items-center justify-center border border-charcoal bg-charcoal lg:flex-1">
-        <iframe
-          src={session.liveViewUrl}
-          title="KERNEL browser live view"
-          className="aspect-[16/10] w-full lg:h-full lg:w-auto lg:max-w-full"
-          allow="camera; microphone; display-capture"
-        />
+      <div className="flex min-h-0 flex-1 items-center justify-center lg:[container-type:size]">
+        <div className="aspect-[16/10] w-full max-w-[900px] border border-charcoal bg-charcoal lg:w-[min(100cqw,900px,160cqh)]">
+          <iframe
+            src={session.liveViewUrl}
+            title="KERNEL browser live view"
+            className="h-full w-full"
+            allow="camera; microphone; display-capture"
+          />
+        </div>
       </div>
 
-      <HowItWorks
-        layout="list"
-        spinUpTime={session.spinUpTime}
-        executions={executions}
-        executionMs={executionMs}
-      />
+      <div className="w-full max-w-[900px] self-center">
+        <HowItWorks
+          layout="list"
+          spinUpTime={session.spinUpTime}
+          executions={executions}
+          executionMs={executionMs}
+        />
+      </div>
     </section>
   );
 }
