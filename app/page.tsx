@@ -4,7 +4,7 @@ import { DefaultChatTransport } from "ai";
 import { useChat } from "@ai-sdk/react";
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AgentStepsSidebar } from "@/components/AgentStepsSidebar";
 import { BrowserPanel } from "@/components/BrowserPanel";
@@ -18,6 +18,9 @@ import { cn } from "@/lib/utils";
 const transport = new DefaultChatTransport<AgentUIMessage>({
   api: "/api/agent",
 });
+
+// a refresh would otherwise strand the live session with no way back to it
+const SESSION_STORAGE_KEY = "kernel-browser-session";
 
 export default function HomePage() {
   const [session, setSession] = useState<BrowserSession | null>(null);
@@ -34,6 +37,27 @@ export default function HomePage() {
     stop,
     setMessages,
   } = useChat<AgentUIMessage>({ transport });
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (!stored) return;
+
+    try {
+      // one-time restore from sessionStorage on mount, not a derived value
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSession(JSON.parse(stored) as BrowserSession);
+    } catch {
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (session) {
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    } else {
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    }
+  }, [session]);
 
   const stats = useMemo(() => {
     let executions = 0;
