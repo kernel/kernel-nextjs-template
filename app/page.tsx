@@ -58,7 +58,12 @@ export default function HomePage() {
 
     try {
       const response = await fetch("/api/create-browser", { method: "POST" });
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
+
+      if (!data) {
+        setError(`create-browser failed with status ${response.status}`);
+        return;
+      }
 
       if (data.success) {
         setMessages([]);
@@ -96,10 +101,12 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId: session.sessionId }),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
 
-      if (!data.success) {
-        setError(data.error ?? "failed to close the browser");
+      if (!data?.success) {
+        setError(
+          data?.error ?? `delete-browser failed with status ${response.status}`,
+        );
         return;
       }
 
