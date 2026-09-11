@@ -56,20 +56,26 @@ let highlighter: Promise<HighlighterCore> | null = null;
  * so the editor bundle stays out of the first paint.
  */
 export function getHighlighter() {
-  highlighter ??= (async () => {
-    const [{ createHighlighterCore }, { createJavaScriptRegexEngine }, js] =
-      await Promise.all([
-        import("shiki/core"),
-        import("shiki/engine/javascript"),
-        import("shiki/langs/javascript.mjs"),
-      ]);
-
-    return createHighlighterCore({
-      themes: [kernelTheme],
-      langs: [js.default],
-      engine: createJavaScriptRegexEngine(),
-    });
-  })();
+  highlighter ??= buildHighlighter().catch((error) => {
+    // don't let one transient chunk-load failure disable highlighting forever
+    highlighter = null;
+    throw error;
+  });
 
   return highlighter;
+}
+
+async function buildHighlighter() {
+  const [{ createHighlighterCore }, { createJavaScriptRegexEngine }, js] =
+    await Promise.all([
+      import("shiki/core"),
+      import("shiki/engine/javascript"),
+      import("shiki/langs/javascript.mjs"),
+    ]);
+
+  return createHighlighterCore({
+    themes: [kernelTheme],
+    langs: [js.default],
+    engine: createJavaScriptRegexEngine(),
+  });
 }
