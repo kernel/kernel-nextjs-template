@@ -133,32 +133,35 @@ export default function HomePage() {
         )}
       >
         {session ? (
-          <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row">
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
             {error && (
               <StackTrace
                 error={error}
                 className="border-0 bg-transparent p-0"
               />
             )}
-            <BrowserPanel
-              session={session}
-              executions={stats.executions}
-              executionMs={stats.executionMs}
-              closing={closing}
-              onClose={closeBrowser}
-            />
-            <AgentStepsSidebar
-              messages={messages}
-              status={status}
-              error={chatError}
-              onSend={(task) =>
-                sendMessage(
-                  { text: task },
-                  { body: { sessionId: session.sessionId } },
-                )
-              }
-              onStop={stop}
-            />
+
+            <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row">
+              <BrowserPanel
+                session={session}
+                executions={stats.executions}
+                executionMs={stats.executionMs}
+                closing={closing}
+                onClose={closeBrowser}
+              />
+              <AgentStepsSidebar
+                messages={messages}
+                status={status}
+                error={chatError}
+                onSend={(task) =>
+                  sendMessage(
+                    { text: task },
+                    { body: { sessionId: session.sessionId } },
+                  )
+                }
+                onStop={stop}
+              />
+            </div>
           </div>
         ) : (
           <div className="space-y-12">

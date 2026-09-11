@@ -51,11 +51,11 @@ export function BrowserPanel({
         </Button>
       </div>
 
-      <div className="flex min-h-0 flex-1 border border-charcoal bg-charcoal">
+      <div className="flex min-h-0 items-center justify-center border border-charcoal bg-charcoal lg:flex-1">
         <iframe
           src={session.liveViewUrl}
           title="KERNEL browser live view"
-          className="h-full w-full"
+          className="aspect-[16/10] w-full lg:h-full lg:w-auto"
           allow="camera; microphone; display-capture"
         />
       </div>
