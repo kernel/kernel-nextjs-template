@@ -161,6 +161,28 @@ function formatResult(result: unknown) {
   return JSON.stringify(result, null, 2);
 }
 
+// a request /api/agent rejects before it starts streaming (missing sessionId,
+// missing an api key) comes back as a plain { error } body, and useChat's
+// transport throws the raw response text as the error message - unwrap that
+// back to plain prose instead of showing the json verbatim
+function chatErrorMessage(error: Error): string {
+  try {
+    const parsed: unknown = JSON.parse(error.message);
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      "error" in parsed &&
+      typeof parsed.error === "string"
+    ) {
+      return parsed.error;
+    }
+  } catch {
+    // not a json body - the message is already plain prose
+  }
+
+  return error.message;
+}
+
 export function AgentStepsSidebar({
   messages,
   status,
@@ -285,7 +307,7 @@ export function AgentStepsSidebar({
 
         {error && (
           <div className="p-4">
-            <StackTrace error={error.message} />
+            <StackTrace error={chatErrorMessage(error)} />
           </div>
         )}
       </div>
