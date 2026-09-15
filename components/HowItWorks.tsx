@@ -59,8 +59,8 @@ export function HowItWorks({
               <span className="text-tag text-grey-light-11">{entry.step}</span>
             </div>
 
-            <div className="min-w-0 flex-1">
-              <p className="text-mono-02 text-charcoal" data-preserve-case>
+            <div className="min-w-40 flex-1">
+              <p className="text-mono-02 text-charcoal break-words" data-preserve-case>
                 {entry.call}
               </p>
               <p className="text-body-03 mt-2 text-grey-light-11">
