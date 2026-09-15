@@ -1,54 +1,43 @@
 import { Kernel, NotFoundError } from "@onkernel/sdk";
 
 export async function POST(req: Request) {
+  const body = (await req.json().catch(() => null)) as { sessionId?: string } | null;
+
+  if (!body?.sessionId) {
+    return Response.json({ error: "missing sessionId" }, { status: 400 });
+  }
+
+  const { sessionId } = body;
+
+  const apiKey = process.env.KERNEL_API_KEY;
+
+  if (!apiKey) {
+    // a missing server env var is a server misconfiguration, not a bad request
+    return Response.json(
+      { error: "KERNEL_API_KEY environment variable is not set" },
+      { status: 500 },
+    );
+  }
+
+  const kernel = new Kernel({ apiKey });
+
   try {
-    const { sessionId } = await req.json();
+    await kernel.browsers.deleteByID(sessionId);
 
-    if (!sessionId) {
-      return Response.json(
-        { error: "Missing sessionId" },
-        { status: 400 }
-      );
+    return Response.json({ success: true });
+  } catch (error) {
+    // the session may have timed out already, which is not an error for us
+    if (error instanceof NotFoundError) {
+      return Response.json({ success: true });
     }
 
-    const apiKey = process.env.KERNEL_API_KEY;
+    console.error("failed to close browser", error);
 
-    if (!apiKey) {
-      return Response.json(
-        { error: "KERNEL_API_KEY not configured" },
-        { status: 500 }
-      );
-    }
-
-    const kernel = new Kernel({ apiKey });
-
-    try {
-      await kernel.browsers.deleteByID(sessionId);
-
-      return Response.json({
-        success: true,
-        message: "Browser session closed successfully",
-      });
-    } catch (error) {
-      // Handle 404 gracefully - browser was already deleted or doesn't exist
-      if (error instanceof NotFoundError) {
-        return Response.json({
-          success: true,
-          message: "Browser session already closed or not found",
-        });
-      }
-
-      // Re-throw other errors
-      throw error;
-    }
-  } catch (error: any) {
-    console.error("Browser deletion error:", error);
     return Response.json(
       {
-        success: false,
-        error: error.message || "Failed to close browser session",
+        error: error instanceof Error ? error.message : "failed to close browser",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

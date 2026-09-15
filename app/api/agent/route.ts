@@ -1,149 +1,80 @@
 import { openai } from "@ai-sdk/openai";
-import { playwrightExecuteTool } from "@onkernel/ai-sdk";
 import { Kernel } from "@onkernel/sdk";
-import { Experimental_Agent as Agent, stepCountIs, tool } from "ai";
-import { z } from "zod";
+import { ToolLoopAgent, convertToModelMessages, stepCountIs } from "ai";
+import { AGENT_STEP_LIMIT } from "@/lib/constants";
+import { playwrightExecuteTool } from "@/lib/playwright-tool";
+import type { AgentUIMessage } from "@/lib/types";
 
-export const maxDuration = 300; // 5 minutes timeout for long-running agent operations
+export const maxDuration = 300;
+
+const INSTRUCTIONS = `you drive a KERNEL cloud browser by writing playwright code.
+
+the browser session already exists and starts on about:blank. inside the execution tool you have \`page\`, \`context\`, \`browser\`, and \`webmcp\` in scope. the tool runs in the same vm as the browser.
+
+how to work:
+- one atomic step per call: navigate, then inspect, then act, then extract. short snippets beat long scripts.
+- the return value is the only thing you get back, so return the data the task asks for.
+- when a selector misses, inspect the page instead of guessing the same selector again.
+- finish with one or two sentences of plain prose. no preamble, no restating the task.
+- you have a hard budget of ${AGENT_STEP_LIMIT} tool calls for this task. if you can tell you won't finish in time, say so plainly in your closing sentence instead of trailing off mid-task.
+
+timeouts:
+- playwright waits 30 seconds before every locator action gives up, which is far longer than anyone is watching. never leave that default in place.
+- open a snippet that touches a selector with \`page.setDefaultTimeout(5000)\`, or pass \`{ timeout: 5000 }\` to the action itself. use up to 15000 for \`page.goto\` on a heavy site, and nothing higher unless the task says otherwise.
+- keep waits you write yourself short too: \`waitForSelector(selector, { timeout: 5000 })\`.
+- to read a value that may not be there, check first (\`await locator.count()\`, \`isVisible()\`) and skip the row, instead of awaiting the text and catching the failure. a \`.catch()\` does not shorten the 30 second wait it is wrapping.`;
 
 export async function POST(req: Request) {
-  try {
-    const { sessionId, task } = await req.json();
+  const body = (await req.json().catch(() => null)) as {
+    messages?: AgentUIMessage[];
+    sessionId?: string;
+  } | null;
 
-    if (!sessionId || !task) {
-      return Response.json(
-        { error: "Missing sessionId or task" },
-        { status: 400 }
-      );
-    }
+  if (!body?.sessionId) {
+    return Response.json({ error: "missing sessionId" }, { status: 400 });
+  }
 
-    const apiKey = process.env.KERNEL_API_KEY;
-    const openaiKey = process.env.OPENAI_API_KEY;
+  const { messages, sessionId } = body;
 
-    if (!apiKey) {
-      return Response.json(
-        { error: "KERNEL_API_KEY environment variable is not set" },
-        { status: 400 }
-      );
-    }
+  const apiKey = process.env.KERNEL_API_KEY;
 
-    if (!openaiKey) {
-      return Response.json(
-        { error: "OPENAI_API_KEY environment variable is not set" },
-        { status: 400 }
-      );
-    }
-
-    const kernel = new Kernel({ apiKey });
-
-    // Initialize the AI agent with GPT-5.1
-    const agent = new Agent({
-      model: openai("gpt-5.1"),
-      tools: {
-        playwright_execute: playwrightExecuteTool({
-          client: kernel,
-          sessionId: sessionId,
-        }),
-      },
-      stopWhen: stepCountIs(20),
-      system: `You are a browser automation expert with access to a Playwright execution tool.
-
-Available tools:
-- playwright_execute: Executes JavaScript/Playwright code in the browser. Has access to 'page', 'context', and 'browser' objects. Returns the result of your code.
-
-When given a task:
-1. If no URL is provided, FIRST get the current page context:
-   return { url: page.url(), title: await page.title() }
-2. If a URL is provided, navigate to it using page.goto()
-3. Use appropriate selectors (page.locator, page.getByRole, etc.) to interact with elements
-4. Always return the requested data from your code execution
-
-Important: Write concise code that solves one atomic step at a time. Break complex tasks into small, focused executions rather than writing long scripts.
-
-Execute tasks autonomously without asking clarifying questions. Make reasonable assumptions and proceed.`,
-    });
-
-    // Execute the agent with the user's task
-    const { text, steps, usage } = await agent.generate({
-      prompt: task,
-    });
-
-    // Extract detailed step information from step.content[] array
-    const detailedSteps = steps.map((step, index) => {
-      const stepData = step as any;
-      const content = stepData.content || [];
-
-      console.log(content);
-
-      // Process each content item based on its type
-      const processedContent = content.map((item: any) => {
-        if (item.type === "tool-call") {
-          return {
-            type: "tool-call" as const,
-            toolCallId: item.toolCallId,
-            toolName: item.toolName,
-            code: item.input?.code || null,
-          };
-        } else if (item.type === "tool-result") {
-          return {
-            type: "tool-result" as const,
-            toolCallId: item.toolCallId,
-            toolName: item.toolName,
-            result: item.result?.result,
-            success: item.result?.success ?? true,
-            error: item.result?.error,
-          };
-        } else if (item.type === "text") {
-          return {
-            type: "text" as const,
-            text: item.text,
-          };
-        }
-        return item;
-      });
-
-      return {
-        stepNumber: index + 1,
-        finishReason: stepData.finishReason || null,
-        content: processedContent,
-      };
-    });
-
-    // Collect all executed code from the steps (for backward compatibility)
-    const executedCodes = detailedSteps.flatMap((step) =>
-      step.content
-        .filter((item: any) => item.type === "tool-call" && item.code)
-        .map((item: any) => {
-          // Find matching result
-          const result = step.content.find(
-            (r: any) =>
-              r.type === "tool-result" && r.toolCallId === item.toolCallId
-          );
-          return {
-            code: item.code,
-            success: result?.success ?? true,
-            result: result?.result,
-            error: result?.error,
-          };
-        })
-    );
-
-    return Response.json({
-      success: true,
-      response: text,
-      executedCodes,
-      detailedSteps,
-      stepCount: steps.length,
-      usage,
-    });
-  } catch (error: any) {
-    console.error("Agent execution error:", error);
+  if (!apiKey) {
     return Response.json(
-      {
-        success: false,
-        error: error.message || "Failed to execute agent",
-      },
-      { status: 500 }
+      { error: "KERNEL_API_KEY environment variable is not set" },
+      { status: 400 },
     );
   }
+
+  if (!process.env.OPENAI_API_KEY) {
+    return Response.json(
+      { error: "OPENAI_API_KEY environment variable is not set" },
+      { status: 400 },
+    );
+  }
+
+  const kernel = new Kernel({ apiKey });
+
+  const agent = new ToolLoopAgent({
+    model: openai("gpt-5.4"),
+    instructions: INSTRUCTIONS,
+    tools: {
+      playwright_execute: playwrightExecuteTool({ client: kernel, sessionId }),
+    },
+    stopWhen: stepCountIs(AGENT_STEP_LIMIT),
+  });
+
+  // a stopped run leaves a tool call without a result, which the model would
+  // reject on the next turn
+  const result = await agent.stream({
+    messages: await convertToModelMessages(messages ?? [], {
+      ignoreIncompleteToolCalls: true,
+    }),
+    abortSignal: req.signal,
+  });
+
+  // this template runs on the deployer's own keys, so the real error is safe
+  // to show them (the ai sdk otherwise masks every failure as one generic string)
+  return result.toUIMessageStreamResponse({
+    onError: (error) => (error instanceof Error ? error.message : "an unexpected error occurred"),
+  });
 }

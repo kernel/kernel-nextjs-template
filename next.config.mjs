@@ -1,14 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  // the dev server is reachable as localhost and as 127.0.0.1, and the dev
+  // overlay refuses to load its own resources from the second one
+  allowedDevOrigins: ["127.0.0.1"],
   images: {
     unoptimized: true,
   },
-  // Exclude playwright-core from bundling - loaded from node_modules at runtime
-  serverExternalPackages: ['playwright-core'],
-  turbopack: {},
 }
 
 export default nextConfig
