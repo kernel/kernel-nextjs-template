@@ -38,6 +38,10 @@ export default function HomePage() {
     setMessages,
   } = useChat<AgentUIMessage>({ transport });
 
+  // stop() only aborts the chat stream - an in-flight playwright.execute()
+  // keeps running in the vm, so closing the browser underneath it would race
+  const busy = status === "submitted" || status === "streaming";
+
   useEffect(() => {
     const stored = sessionStorage.getItem(SESSION_STORAGE_KEY);
     if (!stored) return;
@@ -113,9 +117,8 @@ export default function HomePage() {
   };
 
   const closeBrowser = async () => {
-    if (!session) return;
+    if (!session || busy) return;
 
-    // a run in flight would keep executing against a session we are about to delete
     stop();
     setClosing(true);
 
@@ -180,6 +183,7 @@ export default function HomePage() {
                 executions={stats.executions}
                 executionMs={stats.executionMs}
                 closing={closing}
+                busy={busy}
                 onClose={closeBrowser}
               />
               <AgentStepsSidebar

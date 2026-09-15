@@ -8,12 +8,14 @@ export function BrowserPanel({
   executions,
   executionMs,
   closing,
+  busy,
   onClose,
 }: {
   session: BrowserSession;
   executions: number;
   executionMs: number;
   closing: boolean;
+  busy: boolean;
   onClose: () => void;
 }) {
   return (
@@ -45,7 +47,8 @@ export function BrowserPanel({
           variant="outline"
           size="sm"
           onClick={onClose}
-          disabled={closing}
+          disabled={closing || busy}
+          title={busy ? "stop the current run before closing" : undefined}
         >
           {closing ? "closing" : "close browser"}
         </Button>
